@@ -20,15 +20,7 @@
         <iframe id="terminalFrame" src="" style="width:100%;height:70vh;border:1px solid var(--border);border-radius:var(--radius);background:#000;"></iframe>
       </div>
       <div id="terminalPlaceholder" class="text-muted">
-        <p>Để sử dụng Web Terminal, cần cài <strong>ttyd</strong> và cấu hình <code>TTYD_URL</code> trong file .env</p>
-        <p class="mt-2">Cài đặt:</p>
-        <pre style="background:var(--bg-input);padding:1rem;border-radius:var(--radius);overflow:auto;"># Ubuntu/Debian
-sudo apt install ttyd
-
-# Chạy ttyd (port 7681)
-ttyd -p 7681 -c admin:your_password bash
-# Hoặc không auth (chỉ dùng nội bộ): ttyd -p 7681 bash</pre>
-        <p class="mt-2">Thêm vào .env: <code>TTYD_URL=http://localhost:7681</code> (thay localhost bằng IP server nếu truy cập từ xa)</p>
+        <p>Đang tải terminal...</p>
       </div>
     </div>
   </main>
@@ -49,6 +41,8 @@ async function initTerminal() {
     document.getElementById('terminalPlaceholder').style.display = 'none';
     document.getElementById('terminalFrameWrap').style.display = 'block';
     document.getElementById('terminalFrame').src = j.url;
+  } else {
+    document.getElementById('terminalPlaceholder').innerHTML = '<p class="text-danger">Terminal chưa khởi động. Kiểm tra: <code>systemctl status control-server-ttyd</code></p>';
   }
 }
 initTerminal();

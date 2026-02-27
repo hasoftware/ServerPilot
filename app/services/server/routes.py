@@ -1,7 +1,7 @@
 """Server APIs - logs, systemd services."""
 import subprocess
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.auth.dependencies import require_setup_complete
 from app.config import LOG_DIR, TTYD_URL
@@ -83,7 +83,12 @@ async def get_services(
 
 @router.get("/terminal-url")
 async def get_terminal_url(
+    request,
     current_user: User = Depends(require_setup_complete),
 ):
-    """Get configured ttyd URL for web terminal."""
-    return {"url": TTYD_URL}
+    """Get ttyd URL - from config or derive from request Host header."""
+    if TTYD_URL:
+        return {"url": TTYD_URL}
+    host_header = request.headers.get("host", "localhost")
+    host = host_header.split(":")[0] if ":" in host_header else host_header
+    return {"url": f"http://{host}:7681"}
