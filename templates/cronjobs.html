@@ -73,14 +73,102 @@ endblock %} {% block body %}
         </select>
       </div>
       <div class="form-group">
-        <label>Cron expression</label>
-        <input
-          type="text"
-          name="cron_expression"
-          required
-          placeholder="*/5 * * * *"
-          title="minute hour day month day_of_week"
-        />
+        <label>Lịch chạy</label>
+        <div class="cron-builder">
+          <div class="cron-mode mb-2">
+            <label
+              ><input type="radio" name="cron_mode" value="preset" checked />
+              Chọn nhanh</label
+            >
+            <label
+              ><input type="radio" name="cron_mode" value="custom" /> Tùy
+              chỉnh</label
+            >
+            <label
+              ><input type="radio" name="cron_mode" value="manual" /> Nhập
+              tay</label
+            >
+          </div>
+          <div id="cronPreset" class="cron-block">
+            <select name="cron_preset">
+              <option value="* * * * *">Mỗi phút</option>
+              <option value="*/5 * * * *" selected>Mỗi 5 phút</option>
+              <option value="*/15 * * * *">Mỗi 15 phút</option>
+              <option value="*/30 * * * *">Mỗi 30 phút</option>
+              <option value="0 * * * *">Mỗi giờ (phút 0)</option>
+              <option value="0 */6 * * *">Mỗi 6 giờ</option>
+              <option value="0 0 * * *">Hàng ngày lúc 0:00</option>
+              <option value="0 8 * * *">Hàng ngày lúc 8:00</option>
+              <option value="0 0 * * 0">Hàng tuần (Chủ nhật 0:00)</option>
+              <option value="0 0 1 * *">Hàng tháng (ngày 1, 0:00)</option>
+            </select>
+          </div>
+          <div id="cronCustom" class="cron-block hidden">
+            <div
+              class="cron-row flex gap-2 mb-2"
+              style="flex-wrap: wrap; align-items: center"
+            >
+              <span>Phút:</span>
+              <select name="cron_min">
+                <option value="*">Mỗi phút</option>
+                <option value="0">0</option>
+                <option value="*/5">Mỗi 5 phút</option>
+                <option value="*/10">Mỗi 10 phút</option>
+                <option value="*/15">Mỗi 15 phút</option>
+                <option value="*/30">Mỗi 30 phút</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+              </select>
+              <span>Giờ:</span>
+              <select name="cron_hour">
+                <option value="*">Mỗi giờ</option>
+                <option value="0">0</option>
+                <option value="6">6</option>
+                <option value="8">8</option>
+                <option value="12">12</option>
+                <option value="18">18</option>
+                <option value="23">23</option>
+                <option value="*/6">Mỗi 6 giờ</option>
+              </select>
+              <span>Ngày:</span>
+              <select name="cron_day">
+                <option value="*">Mỗi ngày</option>
+                <option value="1">1</option>
+                <option value="7">7</option>
+                <option value="15">15</option>
+                <option value="28">28</option>
+              </select>
+              <span>Tháng:</span>
+              <select name="cron_month">
+                <option value="*">Mỗi tháng</option>
+                <option value="1">1</option>
+                <option value="6">6</option>
+                <option value="12">12</option>
+              </select>
+              <span>Thứ:</span>
+              <select name="cron_dow">
+                <option value="*">Mỗi ngày</option>
+                <option value="0">Chủ nhật</option>
+                <option value="1">Thứ 2</option>
+                <option value="5">Thứ 6</option>
+                <option value="6">Thứ 7</option>
+              </select>
+            </div>
+          </div>
+          <div id="cronManual" class="cron-block hidden">
+            <input
+              type="text"
+              name="cron_manual"
+              placeholder="*/5 * * * *"
+              style="font-family: monospace"
+            />
+          </div>
+          <div class="text-muted mt-1" style="font-size: 0.85rem">
+            Cron: <code id="cronPreview">*/5 * * * *</code>
+          </div>
+        </div>
+        <input type="hidden" name="cron_expression" required />
       </div>
       <div class="form-group">
         <label
@@ -199,6 +287,95 @@ endblock %} {% block body %}
     return d.innerHTML;
   }
 
+  function buildCron() {
+    const mode =
+      document.querySelector('input[name="cron_mode"]:checked')?.value ||
+      "preset";
+    let expr = "";
+    if (mode === "preset")
+      expr = document.querySelector('[name="cron_preset"]').value;
+    else if (mode === "custom") {
+      const m = document.querySelector('[name="cron_min"]').value;
+      const h = document.querySelector('[name="cron_hour"]').value;
+      const d = document.querySelector('[name="cron_day"]').value;
+      const mo = document.querySelector('[name="cron_month"]').value;
+      const w = document.querySelector('[name="cron_dow"]').value;
+      expr = [m, h, d, mo, w].join(" ");
+    } else expr = document.querySelector('[name="cron_manual"]').value.trim();
+    document.querySelector('[name="cron_expression"]').value = expr;
+    document.getElementById("cronPreview").textContent = expr || "(chưa chọn)";
+    return expr;
+  }
+  function setCronUI(expr) {
+    if (!expr) return;
+    const setMode = (mode) => {
+      document.querySelector(
+        `input[name="cron_mode"][value="${mode}"]`
+      ).checked = true;
+      document
+        .getElementById("cronPreset")
+        .classList.toggle("hidden", mode !== "preset");
+      document
+        .getElementById("cronCustom")
+        .classList.toggle("hidden", mode !== "custom");
+      document
+        .getElementById("cronManual")
+        .classList.toggle("hidden", mode !== "manual");
+    };
+    const sel = document.querySelector('[name="cron_preset"]');
+    const hasPreset = Array.from(sel.options).some((o) => o.value === expr);
+    if (hasPreset) {
+      setMode("preset");
+      sel.value = expr;
+    } else {
+      const parts = expr.trim().split(/\s+/);
+      if (parts.length >= 5) {
+        setMode("custom");
+        const setSelect = (name, val) => {
+          const s = document.querySelector(`[name="${name}"]`);
+          if (Array.from(s.options).some((o) => o.value === val)) s.value = val;
+        };
+        setSelect("cron_min", parts[0]);
+        setSelect("cron_hour", parts[1]);
+        setSelect("cron_day", parts[2]);
+        setSelect("cron_month", parts[3]);
+        setSelect("cron_dow", parts[4]);
+      } else {
+        setMode("manual");
+        document.querySelector('[name="cron_manual"]').value = expr;
+      }
+    }
+    buildCron();
+  }
+  function initCronMode() {
+    document.querySelectorAll('input[name="cron_mode"]').forEach((r) => {
+      r.addEventListener("change", () => {
+        document
+          .getElementById("cronPreset")
+          .classList.toggle("hidden", r.value !== "preset");
+        document
+          .getElementById("cronCustom")
+          .classList.toggle("hidden", r.value !== "custom");
+        document
+          .getElementById("cronManual")
+          .classList.toggle("hidden", r.value !== "manual");
+        buildCron();
+      });
+    });
+    document
+      .querySelector('[name="cron_preset"]')
+      .addEventListener("change", buildCron);
+    ["cron_min", "cron_hour", "cron_day", "cron_month", "cron_dow"].forEach(
+      (n) => {
+        const el = document.querySelector(`[name="${n}"]`);
+        if (el) el.addEventListener("change", buildCron);
+      }
+    );
+    document
+      .querySelector('[name="cron_manual"]')
+      .addEventListener("input", buildCron);
+  }
+
   document.getElementById("btnAdd").addEventListener("click", () => {
     document.getElementById("modalTitle").textContent = "Thêm Cronjob";
     document.getElementById("formCronjob").reset();
@@ -208,6 +385,14 @@ endblock %} {% block body %}
     document.getElementById("enabledCheck").checked = true;
     document.getElementById("formCronjob").querySelector('[name="id"]').value =
       "";
+    document.querySelector(
+      'input[name="cron_mode"][value="preset"]'
+    ).checked = true;
+    document.getElementById("cronPreset").classList.remove("hidden");
+    document.getElementById("cronCustom").classList.add("hidden");
+    document.getElementById("cronManual").classList.add("hidden");
+    document.querySelector('[name="cron_preset"]').value = "*/5 * * * *";
+    buildCron();
     document.getElementById("modalForm").classList.remove("hidden");
   });
 
@@ -219,6 +404,7 @@ endblock %} {% block body %}
     .getElementById("formCronjob")
     .addEventListener("submit", async (e) => {
       e.preventDefault();
+      buildCron();
       const form = e.target;
       const id = form.id.value;
       const data = {
@@ -267,9 +453,9 @@ endblock %} {% block body %}
     form.name.value = j.name;
     form.url.value = j.url;
     form.method.value = j.method;
-    form.cron_expression.value = j.cron_expression;
     form.enable_log.checked = j.enable_log;
     form.enabled.checked = j.enabled;
+    setCronUI(j.cron_expression);
     document.getElementById("modalTitle").textContent = "Sửa Cronjob";
     document.getElementById("modalForm").classList.remove("hidden");
   }
@@ -326,6 +512,7 @@ endblock %} {% block body %}
     document.getElementById("modalLogs").classList.add("hidden");
   });
 
+  initCronMode();
   loadCronjobs();
 </script>
 {% endblock %}
