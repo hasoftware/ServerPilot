@@ -1,4 +1,6 @@
 """Server APIs - logs, systemd services."""
+import json
+import platform
 import subprocess
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -9,6 +11,11 @@ from app.database.models import User
 
 router = APIRouter(prefix="/api/server", tags=["server"])
 
+# Full path cho Linux (tránh Errno 2 khi PATH không có)
+JOURNALCTL = "/usr/bin/journalctl"
+SYSTEMCTL = "/usr/bin/systemctl"
+TAIL = "/usr/bin/tail"
+
 
 @router.get("/logs")
 async def get_logs(
@@ -18,9 +25,11 @@ async def get_logs(
     current_user: User = Depends(require_setup_complete),
 ):
     """Get server logs - journalctl or app logs."""
+    if platform.system() != "Linux":
+        return {"logs": "journalctl và app logs chỉ khả dụng trên Linux."}
     try:
         if source == "journal":
-            cmd = ["journalctl", "-n", str(lines), "--no-pager"]
+            cmd = [JOURNALCTL, "-n", str(lines), "--no-pager"]
             if unit:
                 cmd.extend(["-u", unit])
             result = subprocess.run(
@@ -31,17 +40,18 @@ async def get_logs(
             )
             return {"logs": result.stdout or result.stderr or ""}
         elif source == "app":
-            # App logs from LOG_DIR if exists
             log_file = LOG_DIR / "app.log"
             if not log_file.exists():
                 return {"logs": "(Chưa có log file)"}
             result = subprocess.run(
-                ["tail", "-n", str(lines), str(log_file)],
+                [TAIL, "-n", str(lines), str(log_file)],
                 capture_output=True,
                 text=True,
                 timeout=5,
             )
             return {"logs": result.stdout or ""}
+    except FileNotFoundError:
+        return {"logs": "Lệnh journalctl/tail không tìm thấy. Chạy trên Ubuntu/Linux."}
     except Exception as e:
         return {"logs": f"Lỗi: {str(e)}"}
     return {"logs": ""}
@@ -51,22 +61,60 @@ async def get_logs(
 async def get_services(
     current_user: User = Depends(require_setup_complete),
 ):
-    """List systemd services - simple text parse."""
+    """List systemd services - dùng JSON hoặc parse table."""
+    if platform.system() != "Linux":
+        return {"services": [], "error": "systemctl chỉ khả dụng trên Linux"}
     try:
+        # Thử JSON trước (systemd 230+)
         result = subprocess.run(
             [
-                "systemctl", "list-units", "--type=service",
-                "--no-pager", "--no-legend",
-                "-o", "table", "--plain",
+                SYSTEMCTL, "list-units", "--type=service",
+                "--no-pager", "--output=json",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            data = json.loads(result.stdout)
+            units = data if isinstance(data, list) else (data.get("units") or data.get("data") or data.get("node") or [])
+            if not isinstance(units, list):
+                units = []
+            services = []
+            for u in units:
+                if isinstance(u, dict):
+                    unit = u.get("unit") or u.get("id") or ""
+                    load = u.get("load") or u.get("load_state") or ""
+                    active = u.get("active") or u.get("active_state") or ""
+                    sub = u.get("sub") or u.get("sub_state") or ""
+                    desc = u.get("description") or ""
+                else:
+                    continue
+                if unit:
+                    services.append({
+                        "unit": str(unit),
+                        "load": str(load),
+                        "active": str(active),
+                        "sub": str(sub),
+                        "description": str(desc),
+                    })
+            if services:
+                return {"services": services}
+
+        # Fallback: parse table
+        result = subprocess.run(
+            [
+                SYSTEMCTL, "list-units", "--type=service",
+                "--no-pager", "--no-legend", "-o", "table", "--plain",
             ],
             capture_output=True,
             text=True,
             timeout=10,
         )
         out = result.stdout or result.stderr or ""
-        lines = out.strip().split("\n")[1:]  # skip header
+        line_list = [l for l in out.strip().split("\n") if l.strip()]
         services = []
-        for line in lines:
+        for line in line_list:
             parts = line.split(maxsplit=4)
             if len(parts) >= 5:
                 services.append({
@@ -77,6 +125,10 @@ async def get_services(
                     "description": parts[4],
                 })
         return {"services": services}
+    except FileNotFoundError:
+        return {"services": [], "error": "systemctl không tìm thấy"}
+    except json.JSONDecodeError:
+        return {"services": [], "error": "Không parse được output systemctl"}
     except Exception as e:
         return {"services": [], "error": str(e)}
 

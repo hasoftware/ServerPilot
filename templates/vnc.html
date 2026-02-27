@@ -17,6 +17,9 @@ endblock %} {% block body %}
     <p class="text-muted mb-3">
       Console dạng VNC – tương tự Proxmox. Có thể gõ lệnh trực tiếp.
     </p>
+    <div id="vncToolbar" class="mb-2 flex gap-1" style="display:none;">
+      <button type="button" class="btn btn-secondary btn-sm" id="btnCtrlC" title="Thoát top, v.v.">Gửi Ctrl+C</button>
+    </div>
     <div id="vncBox" class="card">
       <div
         id="vncScreen"
@@ -72,9 +75,18 @@ endblock %} {% block body %}
       rfb.viewOnly = false;
       rfb.addEventListener("connect", () => {
         document.title = "VNC - Đã kết nối";
+        document.getElementById("vncToolbar").style.display = "flex";
       });
       rfb.addEventListener("disconnect", () => {
         document.title = "VNC Viewer - Control Server";
+        document.getElementById("vncToolbar").style.display = "none";
+      });
+      document.getElementById("btnCtrlC").addEventListener("click", () => {
+        const K = { Ctrl: 0xffe3, c: 0x0063 };
+        rfb.sendKey(K.Ctrl, "ControlLeft", true);
+        rfb.sendKey(K.c, "KeyC", true);
+        rfb.sendKey(K.c, "KeyC", false);
+        rfb.sendKey(K.Ctrl, "ControlLeft", false);
       });
     } catch (err) {
       document.getElementById("vncPlaceholder").innerHTML =
