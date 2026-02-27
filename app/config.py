@@ -29,3 +29,6 @@ DATABASE_URL = os.getenv(
 # Log settings
 MAX_LOG_SIZE_MB = int(os.getenv("MAX_LOG_SIZE_MB", "10"))
 LOG_RETENTION_DAYS = int(os.getenv("LOG_RETENTION_DAYS", "30"))
+
+# Terminal (ttyd) - optional, e.g. http://localhost:7681
+TTYD_URL = os.getenv("TTYD_URL", "")

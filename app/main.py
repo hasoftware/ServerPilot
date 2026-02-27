@@ -13,6 +13,7 @@ from app.database.database import init_db
 from app.auth.routes import router as auth_router
 from app.services.cronjob.routes import router as cronjob_router
 from app.services.dashboard.routes import router as dashboard_router
+from app.services.server.routes import router as server_router
 from app.services.cronjob.scheduler import start_scheduler, shutdown_scheduler, load_cronjobs_into_scheduler
 from app.init_db import ensure_default_user
 
@@ -51,6 +52,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(cronjob_router)
+app.include_router(server_router)
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -81,3 +83,21 @@ async def dashboard_page(request: Request):
 async def cronjobs_page(request: Request):
     """Cronjob manager page."""
     return templates.TemplateResponse("cronjobs.html", {"request": request})
+
+
+@app.get("/logs", response_class=HTMLResponse)
+async def logs_page(request: Request):
+    """Log server page."""
+    return templates.TemplateResponse("logs.html", {"request": request})
+
+
+@app.get("/services", response_class=HTMLResponse)
+async def services_page(request: Request):
+    """Systemd services page."""
+    return templates.TemplateResponse("services.html", {"request": request})
+
+
+@app.get("/terminal", response_class=HTMLResponse)
+async def terminal_page(request: Request):
+    """Web terminal page."""
+    return templates.TemplateResponse("terminal.html", {"request": request})
