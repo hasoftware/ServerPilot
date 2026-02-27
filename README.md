@@ -19,7 +19,7 @@ Web Management Panel chạy trên Ubuntu Server, dùng để quản lý server v
 
 ```bash
 git clone https://github.com/hasoftware/ServerPilot.git
-cd Control_Server_Web_GUI
+cd ServerPilot
 ```
 
 ### 2. Chạy script cài đặt
