@@ -14,9 +14,11 @@ if [ "$EUID" -ne 0 ]; then
   exit 1
 fi
 
-# Install system deps
+# Install system deps + VNC stack (Xvfb, x11vnc, websockify)
 apt-get update
-apt-get install -y python3 python3-venv python3-pip ufw
+apt-get install -y software-properties-common 2>/dev/null || true
+add-apt-repository -y universe 2>/dev/null || true
+apt-get install -y python3 python3-venv python3-pip ufw xvfb x11vnc websockify
 
 # Get project dir FIRST (before changing directory)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -35,7 +37,8 @@ python3 -m venv "$INSTALL_DIR/venv"
 mkdir -p "$INSTALL_DIR/data" "$INSTALL_DIR/logs"
 chown -R $SERVICE_USER:$SERVICE_USER "$INSTALL_DIR"
 
-# Create .env if not exists (TTYD không cần TTYD_URL - terminal qua proxy trong panel)
+# Create .env if not exists
+SERVER_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || echo "localhost")
 if [ ! -f "$INSTALL_DIR/.env" ]; then
   cat > "$INSTALL_DIR/.env" << EOF
 HOST=0.0.0.0
@@ -45,18 +48,32 @@ DATABASE_URL=sqlite+aiosqlite:///$INSTALL_DIR/data/control_server.db
 LOG_DIR=$INSTALL_DIR/logs
 MAX_LOG_SIZE_MB=10
 LOG_RETENTION_DAYS=30
+VNC_WS_URL=ws://${SERVER_IP}:6080
 EOF
   chown $SERVICE_USER:$SERVICE_USER "$INSTALL_DIR/.env"
+else
+  if ! grep -q "^VNC_WS_URL=" "$INSTALL_DIR/.env" 2>/dev/null; then
+    echo "VNC_WS_URL=ws://${SERVER_IP}:6080" >> "$INSTALL_DIR/.env"
+    chown $SERVICE_USER:$SERVICE_USER "$INSTALL_DIR/.env"
+  fi
 fi
 
-# Install systemd service (chỉ panel, không ttyd)
+# Install systemd services (panel + VNC stack)
 cp "$INSTALL_DIR/systemd/control-server-web-gui.service" /etc/systemd/system/
+cp "$INSTALL_DIR/systemd/xvfb.service" /etc/systemd/system/
+cp "$INSTALL_DIR/systemd/x11vnc.service" /etc/systemd/system/
+cp "$INSTALL_DIR/systemd/websockify-vnc.service" /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable control-server-web-gui
+systemctl enable control-server-web-gui xvfb x11vnc websockify-vnc
+systemctl start xvfb
+sleep 2
+systemctl start x11vnc
+systemctl start websockify-vnc
 systemctl start control-server-web-gui
 
-# Firewall (chỉ mở port panel, KHÔNG mở 7681 - terminal đi qua proxy trong panel)
+# Firewall
 ufw allow $PORT/tcp 2>/dev/null || true
+ufw allow 6080/tcp 2>/dev/null || true
 ufw --force enable 2>/dev/null || true
 
 echo ""
@@ -66,9 +83,7 @@ echo "Username: Admin"
 echo "Password: Admin"
 echo "Lần đầu đăng nhập: đổi mật khẩu và bật 2FA."
 echo ""
-echo "VNC Viewer: Bạn tự cài VNC server + websockify, cấu hình VNC_WS_URL trong .env"
-echo "  ví dụ: apt install tigervnc-standalone-server; pip install websockify"
-echo "  websockify 6080 localhost:5901"
-echo "  Thêm vào .env: VNC_WS_URL=ws://localhost:6080"
+echo "VNC Viewer: Đã cài sẵn (Xvfb + x11vnc + websockify). Vào menu VNC Viewer để xem."
 echo ""
-echo "systemctl status control-server-web-gui  # Trạng thái panel"
+echo "systemctl status control-server-web-gui  # Panel"
+echo "systemctl status xvfb x11vnc websockify-vnc  # VNC stack"
