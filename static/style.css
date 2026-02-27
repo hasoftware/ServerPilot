@@ -230,6 +230,12 @@ tr:hover td { background: rgba(255,255,255,0.02); }
 
 /* Cron builder */
 .cron-builder { background: var(--bg-input); padding: 1rem; border-radius: var(--radius); }
-.cron-mode label { margin-right: 1rem; cursor: pointer; }
-.cron-mode input { margin-right: 0.3rem; }
+.cron-mode label { margin-right: 1rem; cursor: pointer; display: inline-flex; align-items: center; }
+.cron-mode input { margin-right: 0.3rem; vertical-align: middle; }
 .cron-block select { width: auto; min-width: 100px; }
+.cron-row span { display: inline-flex; align-items: center; }
+
+/* Table action buttons - thẳng hàng */
+.cron-actions { white-space: nowrap; vertical-align: middle; }
+.cron-actions .btn { margin-right: 0.35rem; margin-bottom: 0.2rem; vertical-align: middle; }
+.modal-actions .btn { vertical-align: middle; }

@@ -52,20 +52,29 @@ def _job_wrapper(cronjob_id: int):
 def _parse_cron_expression(expr: str) -> dict:
     """
     Parse cron expression to APScheduler format.
-    Format: minute hour day month day_of_week
-    e.g. "*/5 * * * *" = every 5 minutes
+    Hỗ trợ 5 field: minute hour day month day_of_week (giây = 0)
+    Hỗ trợ 6 field: second minute hour day month day_of_week
     """
     parts = expr.strip().split()
-    if len(parts) != 5:
-        raise ValueError(f"Invalid cron expression: {expr} (need 5 parts)")
-
-    return {
-        "minute": parts[0],
-        "hour": parts[1],
-        "day": parts[2],
-        "month": parts[3],
-        "day_of_week": parts[4],
-    }
+    if len(parts) == 6:
+        return {
+            "second": parts[0],
+            "minute": parts[1],
+            "hour": parts[2],
+            "day": parts[3],
+            "month": parts[4],
+            "day_of_week": parts[5],
+        }
+    if len(parts) == 5:
+        return {
+            "second": "0",
+            "minute": parts[0],
+            "hour": parts[1],
+            "day": parts[2],
+            "month": parts[3],
+            "day_of_week": parts[4],
+        }
+    raise ValueError(f"Invalid cron: {expr} (cần 5 hoặc 6 field)")
 
 
 async def load_cronjobs_into_scheduler() -> None:
