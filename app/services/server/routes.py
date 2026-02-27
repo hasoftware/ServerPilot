@@ -1,5 +1,6 @@
 """Server APIs - logs, systemd services."""
 import json
+import os
 import platform
 import subprocess
 
@@ -11,10 +12,9 @@ from app.database.models import User
 
 router = APIRouter(prefix="/api/server", tags=["server"])
 
-# Full path cho Linux (tránh Errno 2 khi PATH không có)
-JOURNALCTL = "/usr/bin/journalctl"
-SYSTEMCTL = "/usr/bin/systemctl"
-TAIL = "/usr/bin/tail"
+# PATH đầy đủ cho subprocess (service có thể có PATH hạn chế)
+_ENV = os.environ.copy()
+_ENV["PATH"] = "/usr/bin:/bin:" + _ENV.get("PATH", "")
 
 
 @router.get("/logs")
@@ -29,7 +29,7 @@ async def get_logs(
         return {"logs": "journalctl và app logs chỉ khả dụng trên Linux."}
     try:
         if source == "journal":
-            cmd = [JOURNALCTL, "-n", str(lines), "--no-pager"]
+            cmd = ["journalctl", "-n", str(lines), "--no-pager"]
             if unit:
                 cmd.extend(["-u", unit])
             result = subprocess.run(
@@ -37,6 +37,7 @@ async def get_logs(
                 capture_output=True,
                 text=True,
                 timeout=10,
+                env=_ENV,
             )
             return {"logs": result.stdout or result.stderr or ""}
         elif source == "app":
@@ -44,10 +45,11 @@ async def get_logs(
             if not log_file.exists():
                 return {"logs": "(Chưa có log file)"}
             result = subprocess.run(
-                [TAIL, "-n", str(lines), str(log_file)],
+                ["tail", "-n", str(lines), str(log_file)],
                 capture_output=True,
                 text=True,
                 timeout=5,
+                env=_ENV,
             )
             return {"logs": result.stdout or ""}
     except FileNotFoundError:
@@ -68,12 +70,13 @@ async def get_services(
         # Thử JSON trước (systemd 230+)
         result = subprocess.run(
             [
-                SYSTEMCTL, "list-units", "--type=service",
+                "systemctl", "list-units", "--type=service",
                 "--no-pager", "--output=json",
             ],
             capture_output=True,
             text=True,
             timeout=10,
+            env=_ENV,
         )
         if result.returncode == 0 and result.stdout.strip():
             data = json.loads(result.stdout)
@@ -104,12 +107,13 @@ async def get_services(
         # Fallback: parse table
         result = subprocess.run(
             [
-                SYSTEMCTL, "list-units", "--type=service",
+                "systemctl", "list-units", "--type=service",
                 "--no-pager", "--no-legend", "-o", "table", "--plain",
             ],
             capture_output=True,
             text=True,
             timeout=10,
+            env=_ENV,
         )
         out = result.stdout or result.stderr or ""
         line_list = [l for l in out.strip().split("\n") if l.strip()]

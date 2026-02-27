@@ -7,7 +7,7 @@ Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory=/opt/control-server-web-gui
-Environment="PATH=/opt/control-server-web-gui/venv/bin"
+Environment="PATH=/opt/control-server-web-gui/venv/bin:/usr/bin:/bin"
 ExecStart=/opt/control-server-web-gui/venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 1206
 Restart=always
 RestartSec=5
