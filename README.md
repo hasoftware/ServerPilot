@@ -18,7 +18,7 @@ Web Management Panel chạy trên Ubuntu Server, dùng để quản lý server v
 ### 1. Clone repo
 
 ```bash
-git clone https://github.com/YOUR_USER/Control_Server_Web_GUI.git
+git clone https://github.com/hasoftware/ServerPilot.git
 cd Control_Server_Web_GUI
 ```
 
