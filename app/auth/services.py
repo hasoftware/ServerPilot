@@ -1,7 +1,10 @@
 """Authentication services."""
+import base64
+import io
 from datetime import datetime, timedelta
 from typing import Optional
 
+import qrcode
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import pyotp
@@ -72,3 +75,15 @@ def verify_totp(secret: str, token: str) -> bool:
     """Verify TOTP token."""
     totp = pyotp.TOTP(secret)
     return totp.verify(token, valid_window=1)
+
+
+def generate_qr_base64(uri: str, size: int = 200) -> str:
+    """Generate QR code image as base64 data URL."""
+    qr = qrcode.QRCode(version=1, box_size=10, border=2)
+    qr.add_data(uri)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    img = img.resize((size, size))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()

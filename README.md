@@ -142,6 +142,25 @@ Code được thiết kế module hóa. Để thêm service mới:
 3. Include router vào `app/main.py`
 4. Thêm menu và trang UI tương ứng
 
+## Xử lý lỗi
+
+**Đăng nhập Admin/Admin báo sai:**
+
+```bash
+sudo systemctl stop control-server-web-gui
+sudo rm -f /opt/control-server-web-gui/data/control_server.db
+sudo systemctl start control-server-web-gui
+```
+
+Hoặc dùng script: `sudo bash scripts/reset_db.sh` (chạy từ thư mục project)
+
+**Service crash do bcrypt:** Cài bcrypt 4.0.1:
+
+```bash
+sudo -u www-data /opt/control-server-web-gui/venv/bin/pip install "bcrypt==4.0.1"
+sudo systemctl restart control-server-web-gui
+```
+
 ## License
 
 MIT

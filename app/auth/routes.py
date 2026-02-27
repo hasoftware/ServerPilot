@@ -10,6 +10,7 @@ from app.auth.services import (
     create_access_token,
     generate_totp_secret,
     get_totp_uri,
+    generate_qr_base64,
     verify_totp,
     get_user_by_username,
 )
@@ -43,7 +44,7 @@ class AuthResponse(BaseModel):
 class Setup2FAResponse(BaseModel):
     secret: str
     uri: str
-    qr_placeholder: str  # Base64 QR or placeholder
+    qr_code: str  # Base64 data URL for QR image
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -120,7 +121,8 @@ async def setup_2fa(
         await db.commit()
 
     uri = get_totp_uri(secret, current_user.username)
-    return Setup2FAResponse(secret=secret, uri=uri, qr_placeholder=uri)
+    qr_code = generate_qr_base64(uri)
+    return Setup2FAResponse(secret=secret, uri=uri, qr_code=qr_code)
 
 
 @router.post("/verify-2fa")
