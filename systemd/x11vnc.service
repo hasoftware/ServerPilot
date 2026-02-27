@@ -1,12 +1,12 @@
 [Unit]
 Description=x11vnc - VNC server for virtual display
-After=network.target xvfb.service
+After=network.target xvfb.service xvfb-session.service
 Requires=xvfb.service
 
 [Service]
 Type=simple
-# Chạy Xvfb trước
-ExecStartPre=/bin/sleep 2
+# Chạy Xvfb + session (xterm) trước
+ExecStartPre=/bin/sleep 3
 ExecStart=/usr/bin/x11vnc -display :99 -localhost -nopw -forever -shared -rfbport 5900
 Restart=always
 RestartSec=3

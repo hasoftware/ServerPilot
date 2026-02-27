@@ -1,15 +1,14 @@
-{% extends "base.html" %}
-{% block title %}Services - Control Server{% endblock %}
-{% block body %}
+{% extends "base.html" %} {% block title %}Services - Control Server{% endblock
+%} {% block body %}
 <div class="app-shell">
   <aside class="sidebar">
-    <div style="padding: 0 1.5rem 1rem; font-weight: 600;">Control Server</div>
+    <div style="padding: 0 1.5rem 1rem; font-weight: 600">Control Server</div>
     <nav>
       <a href="/dashboard">Dashboard</a>
       <a href="/cronjobs">Cronjob Manager</a>
       <a href="/logs">Log Server</a>
       <a href="/services" class="active">Services</a>
-      <a href="/vnc">VNC Viewer</a>
+      <a href="/vnc">Console</a>
       <a href="#" id="logoutLink">Đăng xuất</a>
     </nav>
   </aside>
@@ -37,38 +36,50 @@
     </div>
   </main>
 </div>
-{% endblock %}
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-document.getElementById('logoutLink').addEventListener('click', async (e) => {
-  e.preventDefault();
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-  window.location.href = '/login';
-});
-async function loadServices() {
-  const r = await fetch('/api/server/services', { credentials: 'include' });
-  if (r.status === 401) { window.location.href = '/login'; return; }
-  if (r.status === 403) { window.location.href = '/setup'; return; }
-  const j = await r.json();
-  const list = j.services || [];
-  document.getElementById('servicesList').innerHTML = list.length === 0
-    ? '<tr><td colspan="5" class="text-muted">Không có dữ liệu</td></tr>'
-    : list.map(s => `
+  document.getElementById("logoutLink").addEventListener("click", async (e) => {
+    e.preventDefault();
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    window.location.href = "/login";
+  });
+  async function loadServices() {
+    const r = await fetch("/api/server/services", { credentials: "include" });
+    if (r.status === 401) {
+      window.location.href = "/login";
+      return;
+    }
+    if (r.status === 403) {
+      window.location.href = "/setup";
+      return;
+    }
+    const j = await r.json();
+    const list = j.services || [];
+    document.getElementById("servicesList").innerHTML =
+      list.length === 0
+        ? '<tr><td colspan="5" class="text-muted">Không có dữ liệu</td></tr>'
+        : list
+            .map(
+              (s) => `
       <tr>
-        <td><code>${escapeHtml(s.unit || '')}</code></td>
-        <td>${escapeHtml(s.load || '')}</td>
-        <td><span class="badge ${(s.active || '') === 'active' ? 'badge-success' : 'badge-warning'}">${escapeHtml(s.active || '')}</span></td>
-        <td>${escapeHtml(s.sub || '')}</td>
-        <td>${escapeHtml(s.description || '')}</td>
+        <td><code>${escapeHtml(s.unit || "")}</code></td>
+        <td>${escapeHtml(s.load || "")}</td>
+        <td><span class="badge ${
+          (s.active || "") === "active" ? "badge-success" : "badge-warning"
+        }">${escapeHtml(s.active || "")}</span></td>
+        <td>${escapeHtml(s.sub || "")}</td>
+        <td>${escapeHtml(s.description || "")}</td>
       </tr>
-    `).join('');
-}
-function escapeHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s || '';
-  return d.innerHTML;
-}
-document.getElementById('btnRefresh').addEventListener('click', loadServices);
-loadServices();
+    `
+            )
+            .join("");
+  }
+  function escapeHtml(s) {
+    const d = document.createElement("div");
+    d.textContent = s || "";
+    return d.innerHTML;
+  }
+  document.getElementById("btnRefresh").addEventListener("click", loadServices);
+  loadServices();
 </script>
 {% endblock %}

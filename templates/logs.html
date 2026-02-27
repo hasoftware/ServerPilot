@@ -1,27 +1,31 @@
-{% extends "base.html" %}
-{% block title %}Log Server - Control Server{% endblock %}
-{% block body %}
+{% extends "base.html" %} {% block title %}Log Server - Control Server{%
+endblock %} {% block body %}
 <div class="app-shell">
   <aside class="sidebar">
-    <div style="padding: 0 1.5rem 1rem; font-weight: 600;">Control Server</div>
+    <div style="padding: 0 1.5rem 1rem; font-weight: 600">Control Server</div>
     <nav>
       <a href="/dashboard">Dashboard</a>
       <a href="/cronjobs">Cronjob Manager</a>
       <a href="/logs" class="active">Log Server</a>
       <a href="/services">Services</a>
-      <a href="/vnc">VNC Viewer</a>
+      <a href="/vnc">Console</a>
       <a href="#" id="logoutLink">Đăng xuất</a>
     </nav>
   </aside>
   <main class="main">
     <h1>Log Server</h1>
     <div class="card mb-2">
-      <div class="flex gap-2" style="flex-wrap:wrap;margin-bottom:1rem;">
+      <div class="flex gap-2" style="flex-wrap: wrap; margin-bottom: 1rem">
         <select id="logSource">
           <option value="journal">System (journalctl)</option>
           <option value="app">Application</option>
         </select>
-        <input type="text" id="logUnit" placeholder="Unit (vd: control-server-web-gui)" style="width:220px;">
+        <input
+          type="text"
+          id="logUnit"
+          placeholder="Unit (vd: control-server-web-gui)"
+          style="width: 220px"
+        />
         <select id="logLines">
           <option value="50">50 dòng</option>
           <option value="100" selected>100 dòng</option>
@@ -30,35 +34,58 @@
         </select>
         <button class="btn btn-primary" id="btnLoadLogs">Tải logs</button>
       </div>
-      <pre id="logContent" class="log-output" style="background:var(--bg-input);padding:1rem;border-radius:var(--radius);max-height:70vh;overflow:auto;font-size:0.8rem;font-family:monospace;"></pre>
+      <pre
+        id="logContent"
+        class="log-output"
+        style="
+          background: var(--bg-input);
+          padding: 1rem;
+          border-radius: var(--radius);
+          max-height: 70vh;
+          overflow: auto;
+          font-size: 0.8rem;
+          font-family: monospace;
+        "
+      ></pre>
     </div>
   </main>
 </div>
-{% endblock %}
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-document.getElementById('logoutLink').addEventListener('click', async (e) => {
-  e.preventDefault();
-  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-  window.location.href = '/login';
-});
-document.getElementById('logUnit').style.display = document.getElementById('logSource').value === 'journal' ? 'inline-block' : 'none';
-document.getElementById('logSource').addEventListener('change', () => {
-  document.getElementById('logUnit').style.display = document.getElementById('logSource').value === 'journal' ? 'inline-block' : 'none';
-});
-async function loadLogs() {
-  const source = document.getElementById('logSource').value;
-  const lines = document.getElementById('logLines').value;
-  const unit = document.getElementById('logUnit').value;
-  let url = `/api/server/logs?source=${source}&lines=${lines}`;
-  if (unit) url += `&unit=${unit}`;
-  const r = await fetch(url, { credentials: 'include' });
-  if (r.status === 401) { window.location.href = '/login'; return; }
-  if (r.status === 403) { window.location.href = '/setup'; return; }
-  const j = await r.json();
-  document.getElementById('logContent').textContent = j.logs || '(Trống)';
-}
-document.getElementById('btnLoadLogs').addEventListener('click', loadLogs);
-loadLogs();
+  document.getElementById("logoutLink").addEventListener("click", async (e) => {
+    e.preventDefault();
+    await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    window.location.href = "/login";
+  });
+  document.getElementById("logUnit").style.display =
+    document.getElementById("logSource").value === "journal"
+      ? "inline-block"
+      : "none";
+  document.getElementById("logSource").addEventListener("change", () => {
+    document.getElementById("logUnit").style.display =
+      document.getElementById("logSource").value === "journal"
+        ? "inline-block"
+        : "none";
+  });
+  async function loadLogs() {
+    const source = document.getElementById("logSource").value;
+    const lines = document.getElementById("logLines").value;
+    const unit = document.getElementById("logUnit").value;
+    let url = `/api/server/logs?source=${source}&lines=${lines}`;
+    if (unit) url += `&unit=${unit}`;
+    const r = await fetch(url, { credentials: "include" });
+    if (r.status === 401) {
+      window.location.href = "/login";
+      return;
+    }
+    if (r.status === 403) {
+      window.location.href = "/setup";
+      return;
+    }
+    const j = await r.json();
+    document.getElementById("logContent").textContent = j.logs || "(Trống)";
+  }
+  document.getElementById("btnLoadLogs").addEventListener("click", loadLogs);
+  loadLogs();
 </script>
 {% endblock %}

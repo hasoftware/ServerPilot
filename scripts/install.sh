@@ -18,7 +18,7 @@ fi
 apt-get update
 apt-get install -y software-properties-common 2>/dev/null || true
 add-apt-repository -y universe 2>/dev/null || true
-apt-get install -y python3 python3-venv python3-pip ufw xvfb x11vnc websockify
+apt-get install -y python3 python3-venv python3-pip ufw xvfb x11vnc websockify xterm
 
 # Get project dir FIRST (before changing directory)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -61,11 +61,14 @@ fi
 # Install systemd services (panel + VNC stack)
 cp "$INSTALL_DIR/systemd/control-server-web-gui.service" /etc/systemd/system/
 cp "$INSTALL_DIR/systemd/xvfb.service" /etc/systemd/system/
+cp "$INSTALL_DIR/systemd/xvfb-session.service" /etc/systemd/system/
 cp "$INSTALL_DIR/systemd/x11vnc.service" /etc/systemd/system/
 cp "$INSTALL_DIR/systemd/websockify-vnc.service" /etc/systemd/system/
 systemctl daemon-reload
-systemctl enable control-server-web-gui xvfb x11vnc websockify-vnc
+systemctl enable control-server-web-gui xvfb xvfb-session x11vnc websockify-vnc
 systemctl start xvfb
+sleep 2
+systemctl start xvfb-session
 sleep 2
 systemctl start x11vnc
 systemctl start websockify-vnc
@@ -83,7 +86,7 @@ echo "Username: Admin"
 echo "Password: Admin"
 echo "Lần đầu đăng nhập: đổi mật khẩu và bật 2FA."
 echo ""
-echo "VNC Viewer: Đã cài sẵn (Xvfb + x11vnc + websockify). Vào menu VNC Viewer để xem."
+echo "Console: Đã cài sẵn (Xvfb + xterm + x11vnc + websockify). Vào menu Console để dùng terminal."
 echo ""
 echo "systemctl status control-server-web-gui  # Panel"
-echo "systemctl status xvfb x11vnc websockify-vnc  # VNC stack"
+echo "systemctl status xvfb xvfb-session x11vnc websockify-vnc  # VNC stack"
