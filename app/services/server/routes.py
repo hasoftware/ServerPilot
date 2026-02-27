@@ -4,7 +4,7 @@ import subprocess
 from fastapi import APIRouter, Depends, Query, Request
 
 from app.auth.dependencies import require_setup_complete
-from app.config import LOG_DIR, TTYD_URL
+from app.config import LOG_DIR, VNC_WS_URL
 from app.database.models import User
 
 router = APIRouter(prefix="/api/server", tags=["server"])
@@ -81,14 +81,14 @@ async def get_services(
         return {"services": [], "error": str(e)}
 
 
-@router.get("/terminal-url")
-async def get_terminal_url(
-    request,
+@router.get("/vnc-url")
+async def get_vnc_url(
+    request: Request,
     current_user: User = Depends(require_setup_complete),
 ):
-    """Get ttyd URL - from config or derive from request Host header."""
-    if TTYD_URL:
-        return {"url": TTYD_URL}
-    host_header = request.headers.get("host", "localhost")
-    host = host_header.split(":")[0] if ":" in host_header else host_header
-    return {"url": f"http://{host}:7681"}
+    """Lấy URL WebSocket của VNC (từ .env). Bạn tự cấu hình VNC server + websockify."""
+    if VNC_WS_URL:
+        return {"url": VNC_WS_URL}
+    host = request.headers.get("host", "localhost").split(":")[0]
+    scheme = "wss" if request.url.scheme == "https" else "ws"
+    return {"url": f"{scheme}://{host}:6080", "hint": "Mặc định port 6080 - cấu hình VNC_WS_URL trong .env"}

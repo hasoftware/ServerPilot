@@ -30,5 +30,6 @@ DATABASE_URL = os.getenv(
 MAX_LOG_SIZE_MB = int(os.getenv("MAX_LOG_SIZE_MB", "10"))
 LOG_RETENTION_DAYS = int(os.getenv("LOG_RETENTION_DAYS", "30"))
 
-# Terminal (ttyd) - optional, e.g. http://localhost:7681
-TTYD_URL = os.getenv("TTYD_URL", "")
+# VNC - WebSocket URL (websockify), ví dụ: ws://localhost:6080
+# Bạn tự cài VNC server (TigerVNC, x11vnc) + websockify, đăng nhập do bạn cấu hình
+VNC_WS_URL = os.getenv("VNC_WS_URL", "")

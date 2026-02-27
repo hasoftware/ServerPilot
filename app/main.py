@@ -97,7 +97,7 @@ async def services_page(request: Request):
     return templates.TemplateResponse("services.html", {"request": request})
 
 
-@app.get("/terminal", response_class=HTMLResponse)
-async def terminal_page(request: Request):
-    """Web terminal page."""
-    return templates.TemplateResponse("terminal.html", {"request": request})
+@app.get("/vnc", response_class=HTMLResponse)
+async def vnc_page(request: Request):
+    """VNC viewer page - view only, đăng nhập VNC do bạn tự cấu hình."""
+    return templates.TemplateResponse("vnc.html", {"request": request})
