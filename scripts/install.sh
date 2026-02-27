@@ -18,13 +18,12 @@ fi
 apt-get update
 apt-get install -y python3 python3-venv python3-pip ufw
 
-# Create install dir
-mkdir -p "$INSTALL_DIR"
-cd "$INSTALL_DIR"
-
-# Copy project files (assume running from project root)
+# Get project dir FIRST (before changing directory)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# Create install dir and copy project
+mkdir -p "$INSTALL_DIR"
 cp -r "$PROJECT_DIR"/* "$INSTALL_DIR/" 2>/dev/null || true
 
 # Remove copied venv if any, then create fresh
