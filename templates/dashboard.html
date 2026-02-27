@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Control Server{% endblock %}
+{% block body %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <div style="padding: 0 1.5rem 1rem; font-weight: 600;">Control Server</div>
+    <nav>
+      <a href="/dashboard" class="active">Dashboard</a>
+      <a href="/cronjobs">Cronjob Manager</a>
+      <a href="#" id="logoutLink">Đăng xuất</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <h1 style="margin-bottom: 1.5rem;">Dashboard</h1>
+    <div class="metrics-grid" id="metrics"></div>
+    <div class="card">
+      <h2>Thông tin server</h2>
+      <div id="metricsDetail" class="text-muted">Đang tải...</div>
+    </div>
+  </main>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('logoutLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  window.location.href = '/login';
+});
+
+async function loadMetrics() {
+  const r = await fetch('/api/dashboard/metrics', { credentials: 'include' });
+  if (r.status === 401) { window.location.href = '/login'; return; }
+  if (r.status === 403) { window.location.href = '/setup'; return; }
+  const m = await r.json();
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric-card"><div class="label">Uptime</div><div class="value">${m.uptime}</div></div>
+    <div class="metric-card"><div class="label">CPU</div><div class="value">${m.cpu_percent}%</div></div>
+    <div class="metric-card"><div class="label">RAM</div><div class="value">${m.memory_percent}%</div></div>
+    <div class="metric-card"><div class="label">Disk</div><div class="value">${m.disk_percent}%</div></div>
+    <div class="metric-card"><div class="label">Cronjob Active</div><div class="value">${m.active_cronjobs}</div></div>
+  `;
+  document.getElementById('metricsDetail').innerHTML = `
+    RAM: ${m.memory_used_gb} / ${m.memory_total_gb} GB<br>
+    Disk: ${m.disk_used_gb} / ${m.disk_total_gb} GB
+  `;
+}
+loadMetrics();
+setInterval(loadMetrics, 15000);
+</script>
+{% endblock %}

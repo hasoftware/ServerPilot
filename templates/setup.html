@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Thiết lập - Control Server{% endblock %}
+{% block body %}
+<div class="auth-page">
+  <div class="auth-box">
+    <h1>Thiết lập bảo mật</h1>
+    <p class="text-muted mb-2" style="font-size:0.9rem;">Lần đăng nhập đầu tiên: đổi mật khẩu và bật 2FA</p>
+    <div id="alert" class="alert alert-error hidden"></div>
+    <div id="successAlert" class="alert alert-success hidden"></div>
+
+    <div id="stepPassword">
+      <h2 style="font-size:1rem;margin-bottom:0.75rem;">1. Đổi mật khẩu</h2>
+      <form id="passwordForm">
+        <div class="form-group">
+          <label>Mật khẩu hiện tại</label>
+          <input type="password" name="current_password" required>
+        </div>
+        <div class="form-group">
+          <label>Mật khẩu mới</label>
+          <input type="password" name="new_password" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary">Đổi mật khẩu</button>
+      </form>
+    </div>
+
+    <div id="step2FA" class="hidden">
+      <h2 style="font-size:1rem;margin-bottom:0.75rem;">2. Bật 2FA (Google Authenticator)</h2>
+      <p class="text-muted mb-2" style="font-size:0.85rem;">Quét mã QR bằng Google Authenticator hoặc nhập key thủ công:</p>
+      <div class="form-group">
+        <label>Secret Key</label>
+        <input type="text" id="totpSecret" readonly style="font-family:monospace;">
+      </div>
+      <div class="form-group">
+        <label>Mã xác nhận 6 số</label>
+        <input type="text" id="totpCode" maxlength="6" placeholder="000000" pattern="[0-9]{6}">
+      </div>
+      <button type="button" class="btn btn-primary" id="btnVerify2FA">Xác nhận & bật 2FA</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const alertEl = document.getElementById('alert');
+const successEl = document.getElementById('successAlert');
+const stepPassword = document.getElementById('stepPassword');
+const step2FA = document.getElementById('step2FA');
+
+async function checkSetupStatus() {
+  try {
+    const r = await fetch('/api/auth/me', { credentials: 'include' });
+    if (r.status === 200) {
+      window.location.href = '/dashboard';
+      return;
+    }
+    if (r.status === 403) {
+      const j = await r.json();
+      if (j.detail === 'totp_required') {
+        stepPassword.classList.add('hidden');
+        step2FA.classList.remove('hidden');
+        await load2FASetup();
+      }
+    }
+  } catch (_) {
+    window.location.href = '/login';
+  }
+}
+
+async function load2FASetup() {
+  const r = await fetch('/api/auth/setup-2fa', { credentials: 'include' });
+  if (!r.ok) { window.location.href = '/login'; return; }
+  const j = await r.json();
+  document.getElementById('totpSecret').value = j.secret;
+}
+
+document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const data = {
+    current_password: form.current_password.value,
+    new_password: form.new_password.value
+  };
+  alertEl.classList.add('hidden');
+  try {
+    const r = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include'
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || 'Failed');
+    successEl.textContent = 'Đã đổi mật khẩu. Tiếp tục bật 2FA.';
+    successEl.classList.remove('hidden');
+    stepPassword.classList.add('hidden');
+    step2FA.classList.remove('hidden');
+    await load2FASetup();
+  } catch (err) {
+    alertEl.textContent = err.message;
+    alertEl.classList.remove('hidden');
+  }
+});
+
+document.getElementById('btnVerify2FA').addEventListener('click', async () => {
+  const code = document.getElementById('totpCode').value.trim();
+  if (code.length !== 6) {
+    alertEl.textContent = 'Nhập đúng 6 số';
+    alertEl.classList.remove('hidden');
+    return;
+  }
+  alertEl.classList.add('hidden');
+  try {
+    const r = await fetch('/api/auth/verify-2fa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ totp_code: code }),
+      credentials: 'include'
+    });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || 'Mã không hợp lệ');
+    successEl.textContent = '2FA đã bật! Đang chuyển đến Dashboard...';
+    successEl.classList.remove('hidden');
+    setTimeout(() => window.location.href = '/dashboard', 1500);
+  } catch (err) {
+    alertEl.textContent = err.message;
+    alertEl.classList.remove('hidden');
+  }
+});
+
+checkSetupStatus();
+</script>
+{% endblock %}

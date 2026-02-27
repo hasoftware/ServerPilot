@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Cronjob Manager - Control Server{% endblock %}
+{% block body %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <div style="padding: 0 1.5rem 1rem; font-weight: 600;">Control Server</div>
+    <nav>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/cronjobs" class="active">Cronjob Manager</a>
+      <a href="#" id="logoutLink">Đăng xuất</a>
+    </nav>
+  </aside>
+  <main class="main">
+    <div class="flex gap-2 mb-2" style="justify-content:space-between;align-items:center;">
+      <h1>Cronjob Manager</h1>
+      <button class="btn btn-primary" id="btnAdd">+ Thêm Cronjob</button>
+    </div>
+    <div id="alert" class="alert alert-error hidden"></div>
+    <div id="successAlert" class="alert alert-success hidden"></div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Tên</th>
+              <th>URL</th>
+              <th>Method</th>
+              <th>Cron</th>
+              <th>Log</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="cronjobList"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal Add/Edit -->
+<div id="modalForm" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modalTitle">Thêm Cronjob</h3>
+    <form id="formCronjob">
+      <input type="hidden" name="id">
+      <div class="form-group">
+        <label>Tên</label>
+        <input type="text" name="name" required placeholder="My job">
+      </div>
+      <div class="form-group">
+        <label>URL</label>
+        <input type="url" name="url" required placeholder="https://example.com/webhook">
+      </div>
+      <div class="form-group">
+        <label>Method</label>
+        <select name="method">
+          <option value="CURL">CURL</option>
+          <option value="WGET">WGET</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cron expression</label>
+        <input type="text" name="cron_expression" required placeholder="*/5 * * * *"
+          title="minute hour day month day_of_week">
+      </div>
+      <div class="form-group">
+        <label><input type="checkbox" name="enable_log" checked> Bật log</label>
+      </div>
+      <div class="form-group">
+        <label><input type="checkbox" name="enabled" checked id="enabledCheck"> Bật cronjob</label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="btnCancel">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal Logs -->
+<div id="modalLogs" class="modal-overlay hidden">
+  <div class="modal" style="max-width:700px;">
+    <h3>Log: <span id="logJobName"></span></h3>
+    <div class="log-list" id="logList"></div>
+    <div class="modal-actions mt-2">
+      <button type="button" class="btn btn-secondary" id="btnCloseLogs">Đóng</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const alertEl = document.getElementById('alert');
+const successEl = document.getElementById('successAlert');
+
+document.getElementById('logoutLink').addEventListener('click', async (e) => {
+  e.preventDefault();
+  await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  window.location.href = '/login';
+});
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { credentials: 'include', ...opts });
+  if (r.status === 401) { window.location.href = '/login'; return null; }
+  if (r.status === 403) { window.location.href = '/setup'; return null; }
+  return r;
+}
+
+async function loadCronjobs() {
+  const r = await api('/api/cronjobs');
+  if (!r) return;
+  const list = await r.json();
+  const tbody = document.getElementById('cronjobList');
+  tbody.innerHTML = list.length === 0
+    ? '<tr><td colspan="8" class="text-muted">Chưa có cronjob</td></tr>'
+    : list.map(j => `
+      <tr>
+        <td>${j.id}</td>
+        <td>${escapeHtml(j.name)}</td>
+        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(j.url)}">${escapeHtml(j.url)}</td>
+        <td>${j.method}</td>
+        <td><code>${escapeHtml(j.cron_expression)}</code></td>
+        <td>${j.enable_log ? '<span class="badge badge-success">Bật</span>' : '<span class="badge badge-warning">Tắt</span>'}</td>
+        <td>${j.enabled ? '<span class="badge badge-success">Active</span>' : '<span class="badge badge-danger">Tắt</span>'}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="runJob(${j.id})">Chạy</button>
+          <button class="btn btn-sm btn-secondary" onclick="editJob(${j.id})">Sửa</button>
+          ${j.enable_log ? `<button class="btn btn-sm btn-secondary" onclick="showLogs(${j.id}, '${escapeHtml(j.name)}')">Log</button>` : ''}
+          <button class="btn btn-sm btn-danger" onclick="deleteJob(${j.id})">Xóa</button>
+        </td>
+      </tr>
+    `).join('');
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+document.getElementById('btnAdd').addEventListener('click', () => {
+  document.getElementById('modalTitle').textContent = 'Thêm Cronjob';
+  document.getElementById('formCronjob').reset();
+  document.getElementById('formCronjob').querySelector('[name="enable_log"]').checked = true;
+  document.getElementById('enabledCheck').checked = true;
+  document.getElementById('formCronjob').querySelector('[name="id"]').value = '';
+  document.getElementById('modalForm').classList.remove('hidden');
+});
+
+document.getElementById('btnCancel').addEventListener('click', () => {
+  document.getElementById('modalForm').classList.add('hidden');
+});
+
+document.getElementById('formCronjob').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const id = form.id.value;
+  const data = {
+    name: form.name.value,
+    url: form.url.value,
+    method: form.method.value,
+    cron_expression: form.cron_expression.value.trim(),
+    enable_log: form.enable_log.checked,
+    enabled: form.enabled.checked
+  };
+  alertEl.classList.add('hidden');
+  successEl.classList.add('hidden');
+  try {
+    if (id) {
+      const r = await api(`/api/cronjobs/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!r || !r.ok) throw new Error('Update failed');
+      successEl.textContent = 'Đã cập nhật';
+    } else {
+      const r = await api('/api/cronjobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...data, enabled: true })
+      });
+      if (!r || !r.ok) throw new Error('Create failed');
+      successEl.textContent = 'Đã thêm cronjob';
+    }
+    successEl.classList.remove('hidden');
+    document.getElementById('modalForm').classList.add('hidden');
+    loadCronjobs();
+  } catch (err) {
+    alertEl.textContent = err.message;
+    alertEl.classList.remove('hidden');
+  }
+});
+
+async function editJob(id) {
+  const r = await api(`/api/cronjobs/${id}`);
+  if (!r) return;
+  const j = await r.json();
+  const form = document.getElementById('formCronjob');
+  form.id.value = j.id;
+  form.name.value = j.name;
+  form.url.value = j.url;
+  form.method.value = j.method;
+  form.cron_expression.value = j.cron_expression;
+  form.enable_log.checked = j.enable_log;
+  form.enabled.checked = j.enabled;
+  document.getElementById('modalTitle').textContent = 'Sửa Cronjob';
+  document.getElementById('modalForm').classList.remove('hidden');
+}
+
+async function deleteJob(id) {
+  if (!confirm('Xóa cronjob này?')) return;
+  const r = await api(`/api/cronjobs/${id}`, { method: 'DELETE' });
+  if (!r || !r.ok) return;
+  successEl.textContent = 'Đã xóa';
+  successEl.classList.remove('hidden');
+  loadCronjobs();
+}
+
+async function runJob(id) {
+  const r = await api(`/api/cronjobs/${id}/run`, { method: 'POST' });
+  if (!r || !r.ok) return;
+  successEl.textContent = 'Đã chạy';
+  successEl.classList.remove('hidden');
+  setTimeout(() => successEl.classList.add('hidden'), 2000);
+}
+
+async function showLogs(id, name) {
+  document.getElementById('logJobName').textContent = name;
+  document.getElementById('modalLogs').classList.remove('hidden');
+  const r = await api(`/api/cronjobs/${id}/logs`);
+  if (!r) return;
+  const j = await r.json();
+  const list = j.logs || [];
+  document.getElementById('logList').innerHTML = list.length === 0
+    ? '<p class="text-muted">Chưa có log</p>'
+    : list.map(l => `
+      <div class="log-item">
+        <div class="log-meta">${l.executed_at} | ${l.status} | ${l.status_code || '-'} | ${l.duration_ms || '-'}ms</div>
+        ${l.error ? `<div class="text-danger">${escapeHtml(l.error)}</div>` : ''}
+        ${l.output ? `<div class="log-output">${escapeHtml(l.output)}</div>` : ''}
+      </div>
+    `).join('');
+}
+
+document.getElementById('btnCloseLogs').addEventListener('click', () => {
+  document.getElementById('modalLogs').classList.add('hidden');
+});
+
+loadCronjobs();
+</script>
+{% endblock %}
